@@ -1,132 +1,265 @@
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
-import time
-import re
-import random
-from tqdm import tqdm
+BRANDS = {
+    "현대": 49,
+    "제네시스": 1010,
+    "기아": 3,
+    "쉐보레/대우": 8,
+    "르노코리아(삼성)": 26,
+    "KG모빌리티(쌍용)": 31,
+    "어울림모터스": 1000,
 
-# -----------------------------
-# 1. 크롤링 대상 설정
-# -----------------------------
-target_brands = [
-    ("현대", 3, 20), ("기아", 49, 20), ("제네시스", 101, 15),
-    ("쉐보레", 4, 15), ("르노코리아", 5, 10),
-    ("BMW", 6, 15), ("벤츠", 21, 15), ("아우디", 18, 10)
-]
-
-base_url_template = "https://www.bobaedream.co.kr/mycar/mycar_list.php?gubun={}&maker_no={}&page={}"
-
-urls = []
-for brand_name, maker_no, page_cnt in target_brands:
-    gubun = "K" if maker_no in [3, 4, 5, 49, 101] else "I"
-    for page in range(1, page_cnt + 1):
-        urls.append((brand_name, base_url_template.format(gubun, maker_no, page)))
-
-
-def clean_number(text):
-    if not text: return None
-    nums = re.sub(r"[^\d]", "", text)
-    return int(nums) if nums else None
-
-
-# 헤더 정보를 더 실제 브라우저와 비슷하게 보강합니다.
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Referer": "https://www.bobaedream.co.kr/"
+    # 수입차
+    "BMW": 1,
+    "벤츠": 21,
+    "아우디": 32,
+    "폭스바겐": 44,
+    "포르쉐": 43,
+    "테슬라": 1006,
+    "토요타": 9,
+    "렉서스": 13,
+    "혼다": 50,
+    "닛산": 5,
+    "포드": 42,
+    "지프": 96,
+    "볼보": 23,
+    "랜드로버": 12,
+    "재규어": 37,
+    "미니": 97,
 }
 
-cars_data = []
+import requests
+import time
+import pandas as pd
+from bs4 import BeautifulSoup
+from tqdm import tqdm
+from datetime import datetime
 
-# -----------------------------
-# 3. 크롤링 시작
-# -----------------------------
-print(f"🚀 안정성 강화 모드로 수집을 재시작합니다...")
-pbar = tqdm(urls, desc="전체 진행 상황")
+BASE_URL = "https://www.bobaedream.co.kr/mycar/mycar_list.php"
 
-for brand_hint, url in pbar:
-    try:
-        # 목록 페이지 요청
-        res = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(res.text, "lxml")
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
 
-        # [수정] 보배드림의 여러 리스트 스타일을 모두 체크합니다.
-        # 일반 리스트형 혹은 갤러리형 등 구조가 다를 수 있음
-        car_items = soup.find_all("li", class_=re.compile("product-item|actual-item"))
+results = []
+MAX_EMPTY_PAGES = 3  # 연속 3페이지 빈 페이지면 중단
 
-        if not car_items:
-            # 다른 클래스명 시도
-            car_items = soup.select("div.mode-cell.list-data")
+print("=" * 70)
+print("🚗 보배드림 중고차 크롤링 시작 (상세 정보 포함)")
+print(f"⏰ 시작 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print("=" * 70)
 
-        if not car_items:
-            continue
+start_time = time.time()
+total_brands = len(BRANDS)
+current_brand_num = 0
 
-        for car in car_items:
-            try:
-                # 상세 페이지 링크 추출 시도
-                a_tag = car.find("a", href=True)
-                if not a_tag or 'view' not in a_tag['href']: continue
-                link = "https://www.bobaedream.co.kr" + a_tag["href"]
+for brand, maker_no in BRANDS.items():
+    current_brand_num += 1
 
-                # 🛑 차단 방지를 위해 매 상세페이지마다 0.7 ~ 1.2초 랜덤 대기
-                time.sleep(random.uniform(0.7, 1.2))
+    print(f"\n{'=' * 70}")
+    print(f"🚗 [{current_brand_num}/{total_brands}] {brand} 수집 중 (maker_no={maker_no})")
+    print(f"{'=' * 70}")
 
-                res2 = requests.get(link, headers=headers, timeout=5)
-                # 만약 서버가 차단했다면 응답 코드가 200이 아님
-                if res2.status_code != 200:
-                    continue
+    page = 1
+    empty_page_count = 0
+    brand_item_count = 0
+    brand_start_time = time.time()
 
-                soup2 = BeautifulSoup(res2.text, "lxml")
+    pbar = tqdm(desc=f"{brand} 페이지", unit="page", position=0, leave=True)
 
-                # 상세 정보 추출 (태그가 없는 경우 예외 처리 강화)
-                name_tag = soup2.find("h3", class_="tit")
-                if not name_tag: continue
-                name = name_tag.get_text(strip=True)
+    while True:
+        try:
+            params = {
+                "maker_no": maker_no,
+                "page": page
+            }
 
-                state = soup2.find("div", class_="tbl-01 st-low")
-                if not state: continue
+            res = requests.get(
+                BASE_URL,
+                headers=HEADERS,
+                params=params,
+                timeout=10
+            )
 
-                # 프로젝트 필수 컬럼
-                th_elements = state.find_all("th")
-                info_dict = {}
-                for th in th_elements:
-                    key = th.get_text(strip=True)
-                    val = th.find_next_sibling("td").get_text(strip=True) if th.find_next_sibling("td") else ""
-                    info_dict[key] = val
+            if res.status_code != 200:
+                print(f"\n⚠️ {brand} {page}페이지 응답 오류")
+                break
 
-                price_tag = soup2.find("span", class_="price")
-                price_text = price_tag.get_text(strip=True) if price_tag else "0"
+            soup = BeautifulSoup(res.text, "html.parser")
 
-                cars_data.append({
-                    "brand": brand_hint,
-                    "model": name.replace(brand_hint, "").strip(),
-                    "year": clean_number(info_dict.get("연식", "")[:4]),
-                    "price_krw": clean_number(price_text) * 10000 if "만" in price_text else clean_number(price_text),
-                    "mileage_km": clean_number(info_dict.get("주행거리", "")),
-                    "fuel_type": info_dict.get("연료", ""),
-                    "transmission": info_dict.get("변속기", ""),
-                    "body_type": info_dict.get("차종", ""),
-                    "displacement_cc": clean_number(info_dict.get("배기량", "")),
-                    "link": link
+            # 실제 HTML 구조: <li class="product-item">
+            items = soup.select("li.product-item")
+
+            if not items or len(items) == 0:
+                empty_page_count += 1
+                pbar.set_postfix({
+                    "수집": brand_item_count,
+                    "빈페이지": f"{empty_page_count}/{MAX_EMPTY_PAGES}"
                 })
-                pbar.set_postfix(수집건수=len(cars_data))
 
-            except Exception:
+                if empty_page_count >= MAX_EMPTY_PAGES:
+                    print(f"\n🛑 {brand} 연속 {MAX_EMPTY_PAGES}페이지 데이터 없음, 종료")
+                    break
+
+                page += 1
+                pbar.update(1)
+                time.sleep(0.5)
                 continue
 
-    except Exception as e:
-        time.sleep(5)  # 큰 에러 발생 시 길게 휴식
-        continue
+            # 데이터 발견 시 빈 페이지 카운터 리셋
+            empty_page_count = 0
+            page_items_found = 0
 
-# -----------------------------
-# 4. 최종 데이터 저장
-# -----------------------------
-if cars_data:
-    df = pd.DataFrame(cars_data)
-    df = df.drop_duplicates(subset=['link'])
-    df.to_csv("used_cars_fix.csv", index=False, encoding="utf-8-sig")
-    print(f"\n✅ 성공! 총 {len(df)}건이 저장되었습니다.")
-else:
-    print("\n❌ 여전히 수집된 데이터가 없습니다. 보배드림 측에서 IP를 일시 차단했을 가능성이 큽니다.")
+            for item in items:
+                try:
+                    # 차량명 추출 (HTML: <p class="tit"><a>차량명</a></p>)
+                    title_elem = item.select_one(".mode-cell.title p.tit a")
+                    if not title_elem:
+                        continue
+
+                    model_name = title_elem.get_text(strip=True)
+
+                    if not model_name or len(model_name) < 2:
+                        continue
+
+                    # 링크 추출
+                    car_link = title_elem.get('href', '')
+                    if car_link and not car_link.startswith('http'):
+                        car_link = "https://www.bobaedream.co.kr" + car_link
+
+                    # 연식 추출 (HTML: <div class="mode-cell year"><span class="text">연식</span></div>)
+                    year_elem = item.select_one(".mode-cell.year span.text")
+                    year = year_elem.get_text(strip=True) if year_elem else ""
+
+                    # 연료 추출
+                    fuel_elem = item.select_one(".mode-cell.fuel span.text")
+                    fuel = fuel_elem.get_text(strip=True) if fuel_elem else ""
+
+                    # 주행거리 추출
+                    km_elem = item.select_one(".mode-cell.km span.text")
+                    mileage = km_elem.get_text(strip=True) if km_elem else ""
+
+                    # 가격 추출 (HTML: <div class="mode-cell price"><b><em class="cr">가격</em>만원</b></div>)
+                    price_elem = item.select_one(".mode-cell.price b")
+                    price = price_elem.get_text(strip=True) if price_elem else ""
+
+                    # 지역 추출 (HTML: <div class="seller-content"><ul><li><span class="text">지역</span></li></ul></div>)
+                    region_elem = item.select_one(".seller-content .content-list .content-item span.text")
+                    region = region_elem.get_text(strip=True) if region_elem else ""
+
+                    # 판매자 정보 추출
+                    seller_elem = item.select_one(".seller-name a span.text")
+                    seller_name = ""
+                    seller_type = ""
+                    if seller_elem:
+                        seller_text = seller_elem.get_text(strip=True)
+                        # "김강섭(반복)" 형태를 분리
+                        if "(" in seller_text:
+                            parts = seller_text.split("(")
+                            seller_name = parts[0].strip()
+                            seller_type = parts[1].replace(")", "").strip()
+                        else:
+                            seller_name = seller_text
+
+                    # 등록일 추출
+                    reg_date = ""
+                    reg_date_items = item.select(".seller-content .content-list .content-item")
+                    for reg_item in reg_date_items:
+                        title_span = reg_item.select_one("span.title")
+                        if title_span and "등록" in title_span.get_text(strip=True):
+                            text_span = reg_item.select_one("span.text")
+                            if text_span:
+                                reg_date = text_span.get_text(strip=True)
+                                break
+
+                    # 조회수 추출
+                    views = ""
+                    view_items = item.select(".seller-content .content-list .content-item")
+                    for view_item in view_items:
+                        title_span = view_item.select_one("span.title")
+                        if title_span and "조회" in title_span.get_text(strip=True):
+                            text_span = view_item.select_one("span.text")
+                            if text_span:
+                                views = text_span.get_text(strip=True)
+                                break
+
+                    results.append({
+                        "brand": brand,
+                        "maker_no": maker_no,
+                        "model_name": model_name,
+                        "price": price,
+                        "year": year,
+                        "mileage": mileage,
+                        "fuel": fuel,
+                        "region": region,
+                        "seller_name": seller_name,
+                        "seller_type": seller_type,
+                        "reg_date": reg_date,
+                        "views": views,
+                        "link": car_link
+                    })
+
+                    brand_item_count += 1
+                    page_items_found += 1
+
+                except Exception as e:
+                    print(f"\n⚠️ 항목 처리 중 오류: {e}")
+                    continue
+
+            pbar.set_postfix({
+                "수집": brand_item_count,
+                "이번페이지": page_items_found
+            })
+
+            page += 1
+            pbar.update(1)
+            time.sleep(0.5)
+
+        except Exception as e:
+            print(f"\n⚠️ {brand} {page}페이지 오류: {e}")
+            break
+
+    pbar.close()
+
+    brand_elapsed = time.time() - brand_start_time
+    print(f"\n✅ {brand} 완료: {brand_item_count}개 수집 (소요시간: {brand_elapsed:.1f}초)")
+    print(f"📊 전체 진행: {len(results)}개 수집 완료")
+
+total_elapsed = time.time() - start_time
+
+print("\n" + "=" * 70)
+print("✅ 전체 수집 완료!")
+print(f"⏰ 종료 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"⏱️ 총 소요 시간: {total_elapsed / 60:.1f}분")
+print(f"📊 총 수집 데이터: {len(results)}건")
+print("=" * 70)
+
+# 데이터프레임 생성
+df = pd.DataFrame(results)
+
+# CSV 저장
+output_file = "used_cars_bobaedream_final.csv"
+df.to_csv(
+    output_file,
+    index=False,
+    encoding="utf-8-sig"
+)
+
+print(f"\n📁 {output_file} 저장 완료")
+print("\n📊 브랜드별 수집 현황:")
+brand_counts = df["brand"].value_counts()
+for brand_name, count in brand_counts.items():
+    print(f"  • {brand_name}: {count}건")
+
+# 데이터 미리보기
+print("\n📋 데이터 샘플 (처음 5개):")
+print(df.head(5))
+
+# 데이터 요약 정보
+print("\n📈 수집된 데이터 품질:")
+print(f"  • 총 데이터: {len(df)}건")
+print(f"  • 브랜드 수: {df['brand'].nunique()}개")
+print(f"  • 가격 정보: {df['price'].notna().sum()}건 ({df['price'].notna().sum() / len(df) * 100:.1f}%)")
+print(f"  • 연식 정보: {df['year'].notna().sum()}건 ({df['year'].notna().sum() / len(df) * 100:.1f}%)")
+print(f"  • 주행거리 정보: {df['mileage'].notna().sum()}건 ({df['mileage'].notna().sum() / len(df) * 100:.1f}%)")
+print(f"  • 지역 정보: {df['region'].notna().sum()}건 ({df['region'].notna().sum() / len(df) * 100:.1f}%)")
+
+print("\n🎉 크롤링 완료!")
