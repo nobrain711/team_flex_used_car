@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  mysql:
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile
+    container_name: mysql_flex1st
+    restart: unless-stopped
+
+    env_file:
+      - ./mysql/.env
+
+    ports:
+      - "13306:3306"
+
+    volumes:
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./mysql_data:/var/lib/mysql
+      - ./mysql/backup:/backup
+
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
