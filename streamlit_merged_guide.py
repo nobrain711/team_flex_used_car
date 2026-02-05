@@ -13,38 +13,143 @@ from usedcar_analysis import (
 # =========================================================
 # CONFIG
 # =========================================================
-st.set_page_config(page_title="중고차 구매 가이드", page_icon="🚗", layout="wide")
+st.set_page_config(page_title="중고차 구매 가이드", page_icon=" ", layout="wide")
+
+
 
 # ---- Dark UI ----
 st.markdown(
     """
 <style>
-.stApp{ background:#0B1220; color:#E5E7EB; }
-.block-container{ padding-top:3.0rem; padding-bottom:1.2rem; max-width:1400px; }
+/* ===== Toss-like (dark) theme ===== */
+.stApp{
+  background:
+    radial-gradient(1100px 520px at 18% 10%, rgba(37,99,235,0.18), transparent 55%),
+    radial-gradient(900px 420px at 82% 0%, rgba(59,130,246,0.10), transparent 55%),
+    #0B1220;
+  color: rgba(255,255,255,0.92);
+}
+
+.block-container{
+  padding-top: 3.0rem !important;
+  padding-bottom: 1.6rem !important;
+  max-width: 1200px;
+}
 
 html, body, [class*="css"]{ font-size:14px; }
 
+/* Sidebar */
 section[data-testid="stSidebar"] > div{
   background:#0F172A;
-  border-right:1px solid rgba(148,163,184,0.15);
+  border-right:1px solid rgba(148,163,184,0.14);
 }
 
+/* Headings */
+.hero-title{
+  font-size: 2.15rem;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.35rem 0;
+}
+.hero-subtitle{
+  font-size: 1.02rem;
+  color: rgba(255,255,255,0.70);
+  margin: 0 0 1.45rem 0;
+}
+
+/* Cards */
+.landing-card{
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  padding: 1.15rem 1.15rem 1.05rem 1.15rem;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.26);
+}
+.landing-card .title{
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0 0 0.55rem 0;
+  letter-spacing: -0.01em;
+}
+.landing-card .desc{
+  font-size: 0.98rem;
+  color: rgba(255,255,255,0.72);
+  line-height: 1.55;
+  margin: 0 0 0.95rem 0;
+}
+
+/* General card used elsewhere */
 .card{
-  background:rgba(255,255,255,0.06);
-  border:1px solid rgba(148,163,184,0.18);
-  border-radius:14px;
-  padding:12px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 16px;
+  padding: 12px 14px;
 }
-.card .k{ color:rgba(229,231,235,0.75); font-size:0.85rem; }
-.card .v{ color:#E5E7EB; font-size:1.1rem; font-weight:780; line-height:1.15; margin-top:2px; }
-.card .s{ color:rgba(229,231,235,0.7); font-size:0.82rem; margin-top:4px; }
+/* Metric card hierarchy */
+.card{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-height: 92px;
+  justify-content: space-between;
+}
 
-div.stButton > button{
-  border-radius: 12px;
-  padding: 0.55rem 0.9rem;
-  font-weight: 780;
+/* 라벨 */
+.card .k{
+  font-size: 0.80rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.62) !important;
 }
-iframe { border-radius: 14px; }
+
+/* 값 */
+.card .v{
+  font-size: 1.45rem !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.02em;
+  color: rgba(255,255,255,0.95) !important;
+  line-height: 1.12;
+}
+
+/* 기준/설명 */
+.card .s{
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  color: rgba(148,163,184,0.95) !important;
+  line-height: 1.25;
+}
+
+/* Buttons */
+div.stButton > button{
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  font-weight: 800;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+}
+div.stButton > button:hover{
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.22);
+}
+
+div.stButton > button[kind="primary"]{
+  border: none !important;
+  background: linear-gradient(135deg, rgba(37,99,235,0.98), rgba(59,130,246,0.92)) !important;
+  box-shadow: 0 10px 30px rgba(37,99,235,0.22);
+}
+div.stButton > button[kind="primary"]:hover{ filter: brightness(1.05); }
+
+div.stButton > button[kind="secondary"]{
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+}
+div.stButton > button[kind="secondary"]:hover{
+  background: rgba(255,255,255,0.06) !important;
+}
+
+/* Dataframe rounding */
+[data-testid="stDataFrame"]{ border-radius: 14px; overflow:hidden; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -126,22 +231,39 @@ def go(step: str):
 # 0) MAIN
 # =========================================================
 if st.session_state.step == STEP_MAIN:
-    st.title("🚗 중고차 구매 가이드")
-    st.caption("구매 차량이 정해졌다면 ‘가격적정도 분석’, 아직 정하지 못했다면 ‘추천/탐색’으로 이동하세요.")
+    st.markdown('<div class="hero-title">중고차 구매 가이드</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="hero-subtitle">구매 차량이 정해졌다면 가격 적정도를 확인하고, 아직 탐색 중이라면 조건 기반 추천 후보를 확인하세요.</div>',
+        unsafe_allow_html=True
+    )
 
     c1, c2 = st.columns(2, gap="large")
+
     with c1:
-        st.subheader("✅ 구매 차량이 정해졌어요")
-        st.write("브랜드/모델과 내 차량 스펙을 입력하면, 유사 매물 기반으로 **기대가격**과 **가격적정도(실제−기대)** 를 보여줍니다.")
-        # ✅ key 추가로 버튼 충돌 방지
-        if st.button("가격적정도 분석으로", type="primary", key="btn_to_price_fit"):
+        st.markdown(
+            '''
+            <div class="landing-card">
+              <div class="title">구매 차량이 정해진 경우</div>
+              <div class="desc">브랜드/모델과 차량 조건을 입력하면 유사 매물 기반으로 기대가격과 가격 적정도를 제공합니다.</div>
+            ''',
+            unsafe_allow_html=True
+        )
+        if st.button("가격 적정도 분석", type="primary", use_container_width=True):
             go(STEP_PRICE_FIT)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
-        st.subheader("🔎 아직 못 정했어요")
-        st.write("예산·연식·주행거리 조건으로 시장을 훑고, **가성비 점수**로 상위 후보를 추천합니다.")
-        if st.button("추천/탐색으로", type="secondary", key="btn_to_recommend"):
+        st.markdown(
+            '''
+            <div class="landing-card">
+              <div class="title">아직 후보를 탐색 중인 경우</div>
+              <div class="desc">예산·연식·주행 조건으로 후보군을 구성하고, 선호도(가격↔상태) 기준으로 추천합니다.</div>
+            ''',
+            unsafe_allow_html=True
+        )
+        if st.button("추천 후보 탐색", type="secondary", use_container_width=True):
             go(STEP_RECOMMEND)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.stop()
 
@@ -252,31 +374,6 @@ def render_price_fit():
 
     top3 = alternatives.head(3)
 
-    # =========================
-    # 화면에 출력
-    # =========================
-    st.subheader("✅ 대안 매물 TOP 3 (유사 군집 내 더 합리적인 선택)")
-    st.write("내 차량보다 **가격차이(실제−기대)** 가 더 낮은 매물 중 상위 3개를 보여줍니다.")
-
-    show_cols = []
-    for c in ["brand", "model_name_raw", "year_int", "mileage_km", "price_manwon", "expected_price", "price_gap",
-              "fuel_type", "region", "weight"]:
-        if c in top3.columns:
-            show_cols.append(c)
-
-    if len(top3) == 0:
-        st.info("현재 선택보다 더 합리적인(가격차이가 더 낮은) 대안 매물이 비교군에서 발견되지 않았습니다.")
-    else:
-        view = top3[show_cols].copy()
-        # 보기 좋게 반올림/형식
-        if "expected_price" in view.columns:
-            view["expected_price"] = view["expected_price"].round(0)
-        if "price_gap" in view.columns:
-            view["price_gap"] = view["price_gap"].round(0)
-
-        st.dataframe(view, use_container_width=True)
-
-    st.divider()
 
     q1, q3 = np.quantile(premium_series, [0.25, 0.75])
     med = float(np.median(premium_series))
@@ -331,11 +428,32 @@ def render_price_fit():
     )
     st.plotly_chart(fig, use_container_width=True)
 
+    st.divider()
+
+    with st.expander("대안 후보 3개 보기 (유사 비교군에서 더 합리적인 선택)", expanded=False):
+        st.write("내 차량보다 **가격차이(실제−기대)** 가 더 낮은 매물 중 상위 3개를 보여줍니다.")
+
+        show_cols = []
+        for c in ["brand", "model_name_raw", "year_int", "mileage_km", "price_manwon", "expected_price", "price_gap",
+                  "fuel_type", "region", "weight"]:
+            if c in top3.columns:
+                show_cols.append(c)
+
+        if len(top3) == 0:
+            st.info("현재 선택보다 더 합리적인(가격차이가 더 낮은) 대안 매물이 비교군에서 발견되지 않았습니다.")
+        else:
+            view = top3[show_cols].copy()
+            if "expected_price" in view.columns:
+                view["expected_price"] = view["expected_price"].round(0)
+            if "price_gap" in view.columns:
+                view["price_gap"] = view["price_gap"].round(0)
+            st.dataframe(view, use_container_width=True)
+
 # =========================================================
 # 2) RECOMMEND / EXPLORE (DB-backed)
 # =========================================================
 def render_recommend():
-    st.title("🔎 추천/탐색 (차량 미정 사용자용)")
+    st.title("추천/탐색")
     st.caption("예산·연식·주행거리 조건으로 후보를 좁히고, ‘가성비 점수’로 상위 후보를 추천합니다.")
 
     with st.sidebar:
@@ -349,6 +467,19 @@ def render_recommend():
         max_price = st.slider("최대 가격(만원)", 100, int(df_all["price_manwon"].quantile(0.95)), 2000, step=50, key="reco_price")
         min_year = st.slider("최소 연식", int(df_all["year_int"].quantile(0.05)), int(df_all["year_int"].max()), int(df_all["year_int"].quantile(0.5)), step=1, key="reco_year")
         max_mileage = st.slider("최대 주행거리(km)", 0, int(df_all["mileage_km"].quantile(0.95)), 80000, step=5000, key="reco_mileage")
+
+        st.markdown("#### 가성비 가중치")
+        w_price = st.slider(
+            "가격 비중(%)",
+            min_value=0,
+            max_value=100,
+            value=50,
+            step=5,
+            help="가격을 더 중시하면 값을 높이세요. 상태(연식+주행) 비중은 자동으로 100-가격비중 입니다.",
+            key="reco_w_price",
+        ) / 100.0
+        w_cond = 1.0 - w_price
+        st.caption(f"현재 설정: 가격 {int(w_price*100)}% / 상태 {int(w_cond*100)}%")
 
         fuels = sorted([f for f in df_all.get("fuel_type", pd.Series(dtype=str)).dropna().unique()])
         sel_fuels = st.multiselect("연료(선택)", fuels, default=[], key="reco_fuels")
@@ -376,6 +507,8 @@ def render_recommend():
         st.warning("조건에 맞는 매물이 없습니다. 조건을 완화해보세요.")
         st.stop()
 
+    st.info(f"가성비 점수는 가격({int(w_price*100)}%) + 상태(연식·주행, {int(w_cond*100)}%)의 가중합으로 계산됩니다. (후보군 내 상대 점수)")
+
     # Value score (teammate idea)
     base_year = 2026
     df["age"] = base_year - df["year_int"]
@@ -386,7 +519,7 @@ def render_recommend():
 
     df["price_score"] = 1 - ((df["price_manwon"] - p_min) / (p_max - p_min + 1e-9))
     df["condition_score"] = 1 - ((df["converted_mileage"] - m_min) / (m_max - m_min + 1e-9))
-    df["value_score"] = (df["price_score"] * 0.5 + df["condition_score"] * 0.5) * 100
+    df["value_score"] = (df["price_score"] * w_price + df["condition_score"] * w_cond) * 100
 
     df = df.sort_values("value_score", ascending=False).reset_index(drop=True)
     df["가성비 순위"] = df.index + 1
@@ -402,7 +535,7 @@ def render_recommend():
 
     st.divider()
 
-    st.subheader(f"🏆 가성비 TOP {top_n}")
+    st.subheader(f"가성비 TOP {top_n}")
     show_cols = ["가성비 순위", "brand", "model_family", "price_manwon", "year_int", "mileage_km", "fuel_type", "region", "value_score"]
     show_cols = [c for c in show_cols if c in df.columns]
     st.dataframe(df.head(int(top_n))[show_cols], use_container_width=True)
