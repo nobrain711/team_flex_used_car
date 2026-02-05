@@ -73,3 +73,11 @@ CREATE INDEX idx_car_specs_maker_id
 -- Used to efficiently retrieve used car listings by car specification.
 CREATE INDEX idx_used_cars_car_spec_id
     ON used_cars(car_spec_id);
+
+-- insert used_cars용
+-- car_specs lookup 최적화
+CREATE INDEX idx_car_specs_lookup
+ON car_specs (maker_id, model_name, generation_name, fuel_type, displacement_cc, transmission, trim_name);
+
+-- used_cars 중복 방지(재실행 대비)
+CREATE UNIQUE INDEX ux_used_cars_listing_url ON used_cars(listing_url);
