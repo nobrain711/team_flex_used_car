@@ -244,7 +244,7 @@ USED_CARS-LEASES 관계를 1:0..1로 모델링하였다.
 ### 6.3 물리 모델 설계
 
 #### 6.3.1 데이터 베이스 ERD
-![Database ERD](./docs/used_car_db.png.png)
+![[Database ERD](./docs/used_car_db.png)](./docs/used_car_db.png)
 > 차량의 고정 제원과 매물 정보를 분리하여 중복을 제거하였다.  
 > 리스 정보는 일부 매물에만 존재하는 선택적 데이터이므로 별도 테이블로 설계하였다.
 
