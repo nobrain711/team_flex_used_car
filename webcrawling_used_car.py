@@ -236,7 +236,7 @@ print("=" * 70)
 df = pd.DataFrame(results)
 
 # CSV 저장
-output_file = "used_cars_bobaedream_final.csv"
+output_file = "data/used_cars_bobaedream_final.csv"
 df.to_csv(
     output_file,
     index=False,
