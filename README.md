@@ -85,66 +85,159 @@
 
 ### 5.1 데이터 출처
 
-- 보배드림 중고차 매물 페이지 크롤링
+- 보배드림 중고차 매물 크롤링
 
-### 5.2 수집 항목(원천)
+### 5.2 수집 항목
+-  차량 제원 관련
+   - 제조사 
+   - 모델명
+   - 세대명
+   - 트림(등급)
+   - 연료 타입
+   - 변속기
+   - 구동 방식
+   - 배기량 / 전비
+   - 연비
+- 매물 관련 (UsedCar)
+  - 가격
+  - 주행거리
+  - 연식(또는 최초 등록 연월)
+  - 색상
+  - 매물 링크(URL)
+  - 리스 여부
+  - 차령(개월)
+- 리스 관련 (Lease, 선택)
+  - 승계지원금
+  - 월 리스료
+  - 잔여 계약 개월
+  - 총 계약 개월
 
-- 브랜드(제조사)  
-- 모델명(자유 텍스트)  
-- 연식(표기 방식 다양)  
-- 주행거리(표기/단위 다양)  
-- 가격(원/만원 혼재 가능)  
-- 연료(휘발유/경유/가솔린 등)  
-- 지역(판매자/매물 지역)  
-- 매물 링크(URL) 및 수집 시각
+### 5.3 전처리
+- 수치 정규화
+  - 가격, 주행거리, 배기량의 콤마 제거 및 정수 변환
+  - 연비/전비 숫자 추출
+  - 리스 금액 관련 문자열 → 숫자 변환
 
-### 5.3 전처리(정제)
+- 도메인 전처리
+  - 연식 → 차령(개월) 계산
+  - 리스 여부 플래그(is_lease) 생성
+  - 리스 매물만 Lease 데이터 분리
 
-- 가격 숫자화: 통화/단위 표기 제거 후 만원 단위 정규화  
-- 주행거리 단위 통일: km 기준으로 변환 및 쉼표 제거  
-- 연식 정수 변환: 4자리 연도 기반 정규화  
-- 결측치 제거: 핵심 비교 변수(모델·연식·주행·가격) 결측 행 제거  
-- 이상치 완화: 극단값(비정상 가격/주행) 제거 또는 분석 단계에서 필터링  
-- 모델명 정규화(대분류): 트림/옵션 표기 등으로 과도 분화되는 문제를 완화하기 위해, “브랜드→모델(대분류)” 기준으로 분석 키를 구성
+- 텍스트/범주 처리
+  -연료 타입 표준화 (예: 가솔린/휘발유 통합)
+  - 변속기 표준화 (자동/수동)
+  - 색상 명칭 정규화
+
+- 데이터 품질 
+  - 중복 매물 제거 (URL 기준)
+  - 필수 컬럼 결측치만 제거
+
 
 ---
 
 ## 6. 데이터베이스 설계
 
-### 6.1 설계 방향
+### 6.1 개념 모델 설계
+#### 요구 정의서
+- 본 프로젝트는 중고차 데이터를 **제조사(Maker)–차량 제원(CarSpec)–매물(UsedCar)** 흐름으로 관리한다.
+- **리스 정보는 일부 매물에서만 제공되는 부가 정보**이므로 Lease로 별도 관리한다.
 
-- 원천 데이터(raw)는 가능한 한 원형 보존(재수집/재정제 가능성 확보)  
-- 서비스 및 분석에 필요한 형태로 정규화된 fact 테이블 구성  
-- 브랜드와 같이 중복·갱신 이상이 큰 속성은 차원 테이블로 분리
+#### 6.1.1 개념 엔티티 정의
+- **제조사**: 차량을 **생산하는 주체**이다.   
+  제조사를 식별하고 분류하기 위한 기준 정보를 대표한다.
+- **차량 제원**: 차량 모델의 세대·트림을 포함한 **고정된 차량 특성**을 나타낸다.   
+  연료 방식, 구동 방식 등 매물과 무관한 스펙 정보를 대표한다.
+- **중고차 매물**: 실제로 거래되는 중고차 단위이다.   
+가격, 상태, 주행 이력 등 **매물마다 달라지는 정보를 대표**한다.
+- **리스 정보**: 리스·렌트·할부 승계 매물에 한해 발생하는 계약 관련 부가 정보를 대표한다.   
+  **일반 매물에는 존재하지 않는다.**
 
-### 6.2 ERD
+#### 6.1.2 개념 관계
+- **제조사 1 : N 차량 제원**   
+  하나의 제조사는 여러 차량 제원을 가질 수 있다.   
+  차량 제원은 반드시 하나의 제조사에 속한다.
+- **차량 제원 1 : N 중고차 매물**   
+  하나의 차량 제원은 여러 중고차 매물로 등록될 수 있다.   
+  각 매물은 하나의 차량 제원을 기준으로 한다.
+- **중고차 매물 1 : 0..1 리스 정보**   
+  리스 정보는 모든 매물에 존재하지 않는다.  
+  리스/승계 매물에 한해 **선택적으로 연결**된다.
+
+---
+
+### 6.2 논리 모델 설계
 
 ```mermaid
 erDiagram
-DIM_BRAND ||--o{ FACT_CAR_LISTING : has
+  MAKERS ||--o{ CAR_SPECS : has
+  CAR_SPECS ||--o{ USED_CARS : listed_as
+  USED_CARS ||--o| LEASES : may_have
 
-DIM_BRAND {
-  INT brand_id
-  VARCHAR brand_name
-}
+  MAKERS {
+    BIGINT maker_id PK
+    STRING maker_name
+    INT maker_origin "0=수입, 1=국산"
+  }
 
-FACT_CAR_LISTING {
-  BIGINT listing_id
-  INT brand_id
-  VARCHAR model_name_raw
-  INT year_int
-  INT mileage_km
-  INT price_manwon
-  VARCHAR fuel_type
-  VARCHAR region
-}
+  CAR_SPECS {
+    BIGINT car_spec_id PK
+    BIGINT maker_id FK
+    STRING model_name
+    STRING body_type
+    STRING generation_name
+    STRING model_year
+    STRING trim_name
+    STRING drivetrain_type
+    STRING fuel_type
+    FLOAT fuel_efficiency
+    INT displacement_cc
+    INT transmission "0=수동, 1=자동"
+    STRING special_note
+  }
+
+  USED_CARS {
+    BIGINT used_car_id PK
+    BIGINT car_spec_id FK
+    INT price
+    STRING listing_url
+    INT is_lease "0=일반, 1=리스/렌트/할부승계"
+    INT mileage_km
+    STRING color_name
+    INT car_age_months
+  }
+
+  LEASES {
+    BIGINT lease_id PK
+    BIGINT used_car_id FK "USED_CARS와 1:1"
+    INT support_amount
+    INT remaining_months
+    INT total_contract_months
+    INT monthly_rent_fee
+    INT handling_fee
+  }
+
 ```
 
-### 6.3 정규화 판단(요약)
+중고차 데이터는 차량의 고정 제원과 매물별 변동 정보가 명확히 구분되는 도메인을 가진다.
+이에 따라 제원 정보와 매물 정보를 분리하였다.
+리스 정보는 선택적으로 존재하는 부가 정보로 설계하였다.
 
-- 브랜드는 정규화를 통해 중복 및 갱신 이상을 방지하였다.  
-- 연료/지역은 분석에 미치는 영향이 상대적으로 낮고 카디널리티가 제한적이므로 fact에 유지하였다.  
-- 모델명은 자유 텍스트 특성상 DB에서 완전 정규화하기보다, Python 분석 단계에서 “대분류(model_family)”로 정규화하여 사용하였다.
+정규화 과정을 통해 **제조사(브랜드)와 차량 제원 정보를 분리**하여   
+데이터 중복을 제거하고 **갱신•삭제 이상을 방지**하였다.
+
+리스 정보는 모든 매물에 존재하지 않는 **선택적 데이터**이으로   
+USED_CARS-LEASES 관계를 1:0..1로 모델링하였다.
+
+---
+
+### 6.3 물리 모델 설계
+
+#### 6.3.1 데이터 베이스 ERD
+<img width="1789" height="910" alt="image" src="https://github.com/user-attachments/assets/94aea864-d804-41b7-be8f-f5bc7b1e0cf9" />
+
+> 차량의 고정 제원과 매물 정보를 분리하여 중복을 제거하였다.  
+> 리스 정보는 일부 매물에만 존재하는 선택적 데이터이므로 별도 테이블로 설계하였다.
+
 
 ---
 
