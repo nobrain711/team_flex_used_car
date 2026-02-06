@@ -501,7 +501,7 @@ project/
 │
 ├─ 02_database_schema/   # MySQL 테이블 생성 및 ERD 기반 스키마
 │
-├─ 03_data_pipeline/     # Python 데이터 적재 및 전처리
+├─ 03_data_pipeline/     # Python 데이터 적재 및 전처리 및 DB로드
 │
 ├─ 04_algorithm/         # 유사도 군집·기대가격·가성비 알고리즘
 │
