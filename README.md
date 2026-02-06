@@ -84,13 +84,14 @@ streamlit run app.py
 
 ```
 project/
-├─ 01_crawling/           # 보배드림 매물 크롤링
-├─ 02_database_schema/    # MySQL 테이블 생성 및 ERD 기반 스키마
-├─ 03_data_pipeline/      # Python 데이터 적재 및 전처리 및 DB 로드
-├─ 04_algorithm/          # 유사도 군집·기대가격·가성비 알고리즘
-├─ 05_streamlit_app/      # Streamlit 서비스 UI
-└─ README.md
+|-- 01_crawling/        # 보배드림 매물 크롤링
+|-- 02_database_schema/ # MySQL 테이블 생성 및 스키마
+|-- 03_data_pipeline/   # 데이터 적재 및 전처리
+|-- 04_algorithm/       # 유사도·기대가격 알고리즘
+|-- 05_streamlit_app/   # 서비스 UI
+`-- README.md
 ```
+
 ---
 
 
