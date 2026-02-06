@@ -493,14 +493,20 @@ condition_score =
 
 ## 18. GitHub 폴더 구조
 
-```
+본 프로젝트는 데이터 수집부터 분석·서비스 구현까지의 전체 파이프라인이 단계별로 구분되도록 폴더를 구성하였다.
+
 project/
-├─ analysis/
-├─ streamlit/
-├─ data/
-├─ crawler/
+├─ 01_crawling/ # 보배드림 매물 크롤링
+│
+├─ 02_database_schema/ # MySQL 테이블 생성 및 ERD 기반 스키마
+│
+├─ 03_data_pipeline/ # Python 데이터 적재 및 전처리
+│
+├─ 04_algorithm/ # 유사도 군집·기대가격·가성비 알고리즘
+│
+├─ 05_streamlit_app/ # Streamlit 서비스 UI
+│
 └─ README.md
-```
 
 ---
 
