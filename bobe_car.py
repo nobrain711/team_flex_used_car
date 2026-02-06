@@ -1,7 +1,7 @@
 # -------------------------------------------------
 # 표준 라이브러리 / 외부 라이브러리 import
 # -------------------------------------------------
-import re
+
 from pathlib import Path
 import pandas as pd
 import requests
@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from paths import DATA_DIR
 
 # 프로젝트 정규식
-from pasers.regex_patterns import RE_MODEL_CODE, RE_MAKER_CODE
+from pasers.regex_patterns import RE_MODEL_CODE, RE_MAKER_CODE, RE_TO_INT
 
 
 class BobeCar:
@@ -140,6 +140,18 @@ class BobeCar:
                 old_df = pd.read_csv(file_path, encoding=encoding)
 
                 # 기존 데이터 + 신규 데이터 병합
+                # 🔹 신규 df 쪽 dtype 먼저 정리
+                int_cols = [
+                    "maker_code", "model_code", "generation_code",
+                    "grade_code", "grade_volume",
+                    "term_code", "term_volume"
+                ]
+
+                for c in int_cols:
+                    if c in df.columns:
+                        df[c] = pd.to_numeric(df[c], errors="coerce").astype("Int64")
+
+                # 그 다음 concat
                 merged_df = pd.concat([old_df, df], ignore_index=True)
 
                 # 중복 제거 기준 컬럼 검증
@@ -458,4 +470,202 @@ class BobeCar:
         except Exception as e:
             print(
                 f"[ERROR] get_maker_generation failed (origin={origin},maker={maker_code},model={model_code}): {e}")
+            raise
+
+    def get_generation_terms(
+            self,
+            origin: str,
+            maker_code: int,
+            model_code: int,
+            generation_code: int
+    ) -> dict:
+        """
+        차량 모델의 세대 등급/트림 정보를 수집하고,
+        DataFrame으로 변환한 뒤 CSV 파일로 저장합니다.
+
+        수집 정보:
+        - grade_code, grade_name, grade_volume
+        - term_code, term_name, term_volume
+        """
+
+        try:
+            grades_url = (
+                f"{self.__BASE_URL}{origin}"
+                f"&dt=true&maker_no={maker_code}"
+                f"&group_no={model_code}"
+                f"&model_no[]={generation_code}"
+            )
+            soup = self.fetch_soup(grades_url)
+
+            # 차량 모델 세대 등급 영역 확인
+            grade_category_tag = soup.select_one("div.area-grade dl.group-list")
+            if grade_category_tag is None:
+                raise ValueError("차량 모델 세대 등급 영역(area-grade)을 찾을 수 없습니다.")
+
+            # ✅ 최상위 등급 dd만 추출
+            grade_categories = grade_category_tag.select("dd", recursive=False)
+            if not grade_categories:
+                print(
+                    f"[WARN] grade dd empty: origin={origin}, maker={maker_code}, model={model_code}, generation={generation_code}")
+                empty_df = pd.DataFrame([], columns=[
+                    "origin", "maker_code", "model_code", "generation_code",
+                    "grade_code", "grade_name", "grade_volume",
+                    "term_code", "term_name", "term_volume"
+                ])
+                csv_path = self.save_df_to_csv(
+                    df=empty_df,
+                    filename="terms",
+                    dedup_keys=["origin", "maker_code", "model_code", "generation_code", "grade_code", "term_code"],
+                )
+                return {"ok": True, "df": empty_df, "csv_path": csv_path, "count": 0}
+            rows: list[dict] = []
+
+            # 차량 모델 세대 등급 정보 파싱
+            for idx, grade_category in enumerate(grade_categories, start=1):
+
+                input_tag = grade_category.select_one("input[name='level_no[]']")
+                if not input_tag or not input_tag.has_attr("value"):
+                    raise ValueError(f"[{idx}] 차량 모델 세대 등급 코드 파싱 실패")
+                grade_code = int(input_tag.get("value"))
+
+                name_tag = grade_category.select_one("label")
+                if name_tag is None:
+                    raise ValueError(f"[{idx}] 차량 모델 세대 등급 이름(label) 없음")
+                grade_name = name_tag.get_text(strip=True)
+
+                volume_tag = grade_category.select_one("span.t2")
+                if volume_tag is None:
+                    raise ValueError(f"[{idx}] 차량 모델 세대 등급 등록 대수(span.t2) 없음")
+                grade_volume = int(volume_tag.get_text(strip=True).replace(",", ""))
+
+                # ✅ volume == 0 → 트림 확장 호출 안 함
+                if grade_volume == 0:
+                    rows.append({
+                        "origin": origin,
+                        "maker_code": maker_code,
+                        "model_code": model_code,
+                        "generation_code": generation_code,
+                        "grade_code": grade_code,
+                        "grade_name": grade_name,
+                        "grade_volume": grade_volume,
+                        "term_code": None,
+                        "term_name": None,
+                        "term_volume": None,
+                    })
+                    continue
+
+                # ✅ 등급별 트림 수집
+                term_list = self.get_term_by_grade(grades_url, grade_code)
+
+                # 트림이 없는 경우 → 등급만 저장
+                if not term_list:
+                    rows.append({
+                        "origin": origin,
+                        "maker_code": maker_code,
+                        "model_code": model_code,
+                        "generation_code": generation_code,
+                        "grade_code": grade_code,
+                        "grade_name": grade_name,
+                        "grade_volume": grade_volume,
+                        "term_code": None,
+                        "term_name": None,
+                        "term_volume": None,
+                    })
+                    continue
+
+                # 트림이 있으면 트림별 row 생성
+                for t in term_list:
+                    rows.append({
+                        "origin": origin,
+                        "maker_code": maker_code,
+                        "model_code": model_code,
+                        "generation_code": generation_code,
+                        "grade_code": grade_code,
+                        "grade_name": grade_name,
+                        "grade_volume": grade_volume,
+                        **t,
+                    })
+
+            df = pd.DataFrame(rows)
+
+            csv_path = self.save_df_to_csv(
+                df=df,
+                filename="terms",
+                dedup_keys=[
+                    "origin",
+                    "maker_code",
+                    "model_code",
+                    "generation_code",
+                    "grade_code",
+                    "term_code",
+                ],
+            )
+
+            return {
+                "ok": True,
+                "df": df,
+                "csv_path": csv_path,
+                "count": len(df),
+            }
+
+        except Exception as e:
+            print(
+                f"[ERROR] get_generation_terms failed "
+                f"(origin={origin}, maker={maker_code}, model={model_code}, generation={generation_code}): {e}"
+            )
+            raise
+
+    def get_term_by_grade(self, base_url: str, level_no: int) -> list[dict]:
+        """
+        특정 등급(level_no)의 트림(level2_no) 목록을 수집합니다.
+        - level_no 파라미터를 붙여 재요청 후, level2_no[]를 파싱합니다.
+        """
+        try:
+            term_url = f"{base_url}&level_no[]={level_no}"
+            soup = self.fetch_soup(term_url)
+
+            group = soup.select_one("div.area-grade dl.group-list")
+            if group is None:
+                return []
+
+            term_inputs = group.select("input[name='level2_no[]']")
+            if not term_inputs:
+                return []
+
+            terms: list[dict] = []
+            seen_term_codes: set[int] = set()
+
+            for inp in term_inputs:
+                if not inp.has_attr("value"):
+                    continue
+
+                term_code = int(inp["value"])
+                if term_code in seen_term_codes:
+                    continue
+                seen_term_codes.add(term_code)
+
+                dd = inp.find_parent("dd")
+                if dd is None:
+                    continue
+
+                label = dd.select_one("label")
+                term_name = label.get_text(strip=True) if label else None
+                if term_name in ("", "-"):
+                    term_name = None
+
+                cnt_tag = dd.select_one("span.t2")
+                cnt_text = (cnt_tag.get_text(strip=True) if cnt_tag else "").replace(",", "")
+                m = RE_TO_INT.search(cnt_text)
+                term_volume = int(m.group(1)) if m else 0
+
+                terms.append({
+                    "term_code": term_code,
+                    "term_name": term_name,
+                    "term_volume": term_volume,
+                })
+
+            return terms
+
+        except Exception as e:
+            print(f"[ERROR] get_term_by_grade failed (level_no={level_no}): {e}")
             raise
