@@ -46,17 +46,16 @@
 > 예산·연식·주행거리 조건 기반 후보를 구성한 뒤, 환산주행거리와 가격 경쟁력을 반영한 가성비 점수로 추천합니다.
 
 ---
-
 ## 📚 Documentation (Wiki)
 
 프로젝트의 상세 문서(설계/DB/분석 프레임워크/브랜치 운영)는 Wiki에 정리되어 있습니다.
 
-- Home: [WIKI_URL_HOME](https://github.com/rusidian/team_flex_used_car/wiki)
-- Project Overview: [WIKI_URL_PROJECT_OVERVIEW](https://github.com/rusidian/team_flex_used_car/wiki/Project-Overview)
-- Architecture & Pipeline: [WIKI_URL_ARCHITECTURE](https://github.com/rusidian/team_flex_used_car/wiki/Architecture-&-Pipeline)
-- Database: [WIKI_URL_DATABASE](https://github.com/rusidian/team_flex_used_car/wiki/Database)
-- Analytical Framework & Metrics: [WIKI_URL_ANALYTICAL](https://github.com/rusidian/team_flex_used_car/wiki/Analytical-Framework-&-Metrics)
-- Branching & Release Guide: [WIKI_URL_BRANCHING](https://github.com/rusidian/team_flex_used_car/wiki/Branching-&-Release-Guide)
+- Home: https://github.com/rusidian/team_flex_used_car/wiki
+- Project Overview: https://github.com/rusidian/team_flex_used_car/wiki/Project-Overview
+- Architecture & Pipeline: https://github.com/rusidian/team_flex_used_car/wiki/Architecture-&-Pipeline
+- Database: https://github.com/rusidian/team_flex_used_car/wiki/Database
+- Analytical Framework & Metrics: https://github.com/rusidian/team_flex_used_car/wiki/Analytical-Framework-&-Metrics
+- Branching & Release Guide: https://github.com/rusidian/team_flex_used_car/wiki/Branching-&-Release-Guide
 
 ---
 
@@ -64,33 +63,50 @@
 
 > 팀원 코드(크롤링/스키마/적재)가 완성되면, 여기 실행 절차를 최종 버전으로 확정합니다.
 
-1) DB 준비
+### 1) DB 준비
+
 - MySQL 실행
 - 스키마 생성: `02_database_schema/`
 - 데이터 적재/전처리: `03_data_pipeline/`
 
-2) Streamlit 실행
+---
+
+### 2) Streamlit 실행
+
 ```bash
 cd 05_streamlit_app
 streamlit run app.py
+```
 
-3. (필요 시) 환경변수 설정
-- DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME 등
-- 환경변수/설정 파일 위치는 팀 최종 구성에 맞춰 업데이트합니다.
+---
+
+### 3) (필요 시) 환경변수 설정
+
+- DB_HOST  
+- DB_PORT  
+- DB_USER  
+- DB_PASSWORD  
+- DB_NAME  
+
+환경변수/설정 파일 위치는 팀 최종 구성에 맞춰 업데이트합니다.
+
+---
 
 ## GitHub 폴더 구조
 
 본 프로젝트는 데이터 수집부터 분석·서비스 구현까지의 전체 파이프라인이 단계별로 구분되도록 폴더를 구성했습니다.
 
-```project/
+```
+project/
 ├─ 01_crawling/           # 보배드림 매물 크롤링
 ├─ 02_database_schema/    # MySQL 테이블 생성 및 ERD 기반 스키마
 ├─ 03_data_pipeline/      # Python 데이터 적재 및 전처리 및 DB 로드
 ├─ 04_algorithm/          # 유사도 군집·기대가격·가성비 알고리즘
 ├─ 05_streamlit_app/      # Streamlit 서비스 UI
 └─ README.md
-
+```
 
 ---
+
 
 
