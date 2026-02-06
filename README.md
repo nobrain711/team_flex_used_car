@@ -118,43 +118,134 @@
 - 보배드림 중고차 매물 크롤링
 
 ### 5.2 수집 항목
-
-- 브랜드  
-- 모델명  
-- 연식  
-- 주행거리  
-- 가격  
-- 연료  
-- 지역  
+-  차량 제원 관련
+   - 제조사 
+   - 모델명
+   - 세대명
+   - 트림(등급)
+   - 연료 타입
+   - 변속기
+   - 구동 방식
+   - 배기량 / 전비
+   - 연비
+- 매물 관련 (UsedCar)
+  - 가격
+  - 주행거리
+  - 연식(또는 최초 등록 연월)
+  - 색상
+  - 매물 링크(URL)
+  - 리스 여부
+  - 차령(개월)
+- 리스 관련 (Lease, 선택)
+  - 승계지원금
+  - 월 리스료
+  - 잔여 계약 개월
+  - 총 계약 개월
 
 ### 5.3 전처리
+- 수치 정규화
+  - 가격, 주행거리, 배기량의 콤마 제거 및 정수 변환
+  - 연비/전비 숫자 추출
+  - 리스 금액 관련 문자열 → 숫자 변환
 
-- 가격 숫자화  
-- 주행거리 단위 통일  
-- 연식 정수 변환  
-- 결측치 제거  
+- 도메인 전처리
+  - 연식 → 차령(개월) 계산
+  - 리스 여부 플래그(is_lease) 생성
+  - 리스 매물만 Lease 데이터 분리
+
+- 텍스트/범주 처리
+  -연료 타입 표준화 (예: 가솔린/휘발유 통합)
+  - 변속기 표준화 (자동/수동)
+  - 색상 명칭 정규화
+
+- 데이터 품질 
+  - 중복 매물 제거 (URL 기준)
+  - 필수 컬럼 결측치만 제거
+
 
 ---
 
 ## 6. 데이터베이스 설계
 
+### 6.1 개념 모델 설계
+#### 요구 정의서
+- 본 프로젝트는 중고차 데이터를 **제조사(Maker)–차량 제원(CarSpec)–매물(UsedCar)** 흐름으로 관리한다.
+- **리스 정보는 일부 매물에서만 제공되는 부가 정보**이므로 Lease로 별도 관리한다.
+
+#### 6.1.1 개념 엔티티 정의
+- **제조사**: 차량을 **생산하는 주체**이다.   
+  제조사를 식별하고 분류하기 위한 기준 정보를 대표한다.
+- **차량 제원**: 차량 모델의 세대·트림을 포함한 **고정된 차량 특성**을 나타낸다.   
+  연료 방식, 구동 방식 등 매물과 무관한 스펙 정보를 대표한다.
+- **중고차 매물**: 실제로 거래되는 중고차 단위이다.   
+가격, 상태, 주행 이력 등 **매물마다 달라지는 정보를 대표**한다.
+- **리스 정보**: 리스·렌트·할부 승계 매물에 한해 발생하는 계약 관련 부가 정보를 대표한다.   
+  **일반 매물에는 존재하지 않는다.**
+
+#### 6.1.2 개념 관계
+- **제조사 1 : N 차량 제원**   
+  하나의 제조사는 여러 차량 제원을 가질 수 있다.   
+  차량 제원은 반드시 하나의 제조사에 속한다.
+- **차량 제원 1 : N 중고차 매물**   
+  하나의 차량 제원은 여러 중고차 매물로 등록될 수 있다.   
+  각 매물은 하나의 차량 제원을 기준으로 한다.
+- **중고차 매물 1 : 0..1 리스 정보**   
+  리스 정보는 모든 매물에 존재하지 않는다.  
+  리스/승계 매물에 한해 **선택적으로 연결**된다.
+
+---
+
+### 6.2 논리 모델 설계
+
 ```mermaid
 erDiagram
-DIM_BRAND ||--o{ FACT_CAR_LISTING : has
+  MAKERS ||--o{ CAR_SPECS : has
+  CAR_SPECS ||--o{ USED_CARS : listed_as
+  USED_CARS ||--o| LEASES : may_have
 
-DIM_BRAND {
-  INT brand_id
-  VARCHAR brand_name
-}
+  MAKERS {
+    BIGINT maker_id PK
+    STRING maker_name
+    INT maker_origin "0=수입, 1=국산"
+  }
 
-FACT_CAR_LISTING {
-  BIGINT listing_id
-  INT brand_id
-  VARCHAR model_name_raw
-  INT year_int
-  INT mileage_km
-  INT price_manwon
-}
+  CAR_SPECS {
+    BIGINT car_spec_id PK
+    BIGINT maker_id FK
+    STRING model_name
+    STRING body_type
+    STRING generation_name
+    STRING model_year
+    STRING trim_name
+    STRING drivetrain_type
+    STRING fuel_type
+    FLOAT fuel_efficiency
+    INT displacement_cc
+    INT transmission "0=수동, 1=자동"
+    STRING special_note
+  }
+
+  USED_CARS {
+    BIGINT used_car_id PK
+    BIGINT car_spec_id FK
+    INT price
+    STRING listing_url
+    INT is_lease "0=일반, 1=리스/렌트/할부승계"
+    INT mileage_km
+    STRING color_name
+    INT car_age_months
+  }
+
+  LEASES {
+    BIGINT lease_id PK
+    BIGINT used_car_id FK "USED_CARS와 1:1"
+    INT support_amount
+    INT remaining_months
+    INT total_contract_months
+    INT monthly_rent_fee
+    INT handling_fee
+  }
+
 ```
 
 중고차 데이터는 차량의 고정 제원과 매물별 변동 정보가 명확히 구분되는 도메인을 가진다.
@@ -166,6 +257,7 @@ FACT_CAR_LISTING {
 
 리스 정보는 모든 매물에 존재하지 않는 **선택적 데이터**이으로   
 USED_CARS-LEASES 관계를 1:0..1로 모델링하였다.
+
 
 ---
 
