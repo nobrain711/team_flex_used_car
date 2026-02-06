@@ -1,6 +1,6 @@
 import pandas as pd
 
-from paths import DATA_DIR
+from .paths import DATA_DIR
 
 
 def load_csv(filename: str, encoding: str = 'utf-8') -> pd.DataFrame:
