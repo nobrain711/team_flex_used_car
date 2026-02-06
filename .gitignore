@@ -217,7 +217,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-mysql/.env
+.env
 .venv
 env/
 venv/
@@ -258,5 +258,5 @@ cython_debug/
 
 *-pycharm-support-libs
 
-# mysql backup
+# 02_database backup
 mysql_data/
