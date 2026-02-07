@@ -15,44 +15,32 @@
 
 ---
 ## 실행 환경 (Environment)
+> 앞에는 개발에 사용된 언어와 버전이고 ⇒ 뒤 부터는 docker image
+> Python라이브러리는 Streamlit만 기재 자세한 거는 ![requirements.txt]('05_streamlit_app/requirements.txt')를 참조
+- Python 3.12 ⇒ 
+  - Streamlit 1.53
+  - 주요 라이브러리: pandas, numpy, scikit-learn, matplotlib, sqlalchemy, pymysql
+- MySQL 8.0.45 ⇒ 
 
-- Python 3.12
-- MySQL 8.0.45
-- Streamlit 1.53
-- 주요 라이브러리: pandas, numpy, scikit-learn, matplotlib, sqlalchemy, pymysql
 
 ---
 ## 실행 방법 (How to Run)
 
-> 팀원 코드(크롤링/스키마/적재)가 완성되면, 여기 실행 절차를 최종 버전으로 확정합니다.
-
-### 0) 라이브러리 설치
-
-```bash
-pip install -r requirements.txt
-```
-
-### 1) DB 준비
-
-- MySQL 실행
-- 스키마 생성: `02_database_schema/`
-- 데이터 적재/전처리: `03_data_pipeline/`
-
----
-
-### 2) Streamlit 실행
-
-```bash
-cd 05_streamlit_app
-streamlit run app.py
-```
-
----
-
-### 3) (필요 시) 환경변수 설정
+### 1) 환경변수 설정
 
 - `.env.example`을 복사해 `.env`로 만들고 값을 입력합니다.
-- 필요 변수: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+- 필요 변수: DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_NAME, MYSQL_ROOT_PASSWORD
+
+---
+### 2) docker구동
+  프로젝트 폴더의 최상단 위치에서 아래의 명령어를 실행한다.
+```bash
+docker-compose -p SKN26-1ST-1TEAM up 
+```
+- `-p SKN26-1ST-TEAM`: Docker Compose의 프로젝트 이름 지정
+- 컨테이너, 네트워크, 저장소 이름이 SKN26-1ST-1TEAM_* 형태로 생성됨
+
+
 ---
 
 ## 구현 화면 (Demo)
@@ -124,7 +112,7 @@ TZ=Asia/Seoul
 #### 1.3.2 docker-compose 실행
 프로젝트 폴더의 최상단 위치에서 아래의 명령어를 실행한다.
 ```bash
-docker-compose -p SKN26-1ST-1TEAM up 
+docker-compose -p skn6_1st_1team up 
 ```
 - `-p SKN26-1ST-TEAM`: Docker Compose의 프로젝트 이름 지정
 - 컨테이너, 네트워크, 저장소 이름이 SKN26-1ST-1TEAM_* 형태로 생성됨
@@ -334,7 +322,7 @@ USED_CARS-LEASES 관계를 1:0..1로 모델링하였다.
 
 #### 6.3.1 데이터 베이스 ERD
 
-![[Database ERD](./docs/used_car_db.png)](./docs/used_car_db.png)
+![[Database ERD](07_docs/used_car_db.png)](07_docs/used_car_db.png)
 > 차량의 고정 제원과 매물 정보를 분리하여 중복을 제거하였다.  
 > 리스 정보는 일부 매물에만 존재하는 선택적 데이터이므로 별도 테이블로 설계하였다.
 

@@ -52,9 +52,19 @@ def _get_config_from_env_or_streamlit() -> Dict[str, str]:
 
 def get_engine() -> Engine:
     cfg = _get_config_from_env_or_streamlit()
-    return create_engine(
-        f"mysql+pymysql://{cfg['DB_USER']}:{cfg['DB_PASS']}@{cfg['DB_HOST']}:{cfg['DB_PORT']}/{cfg['DB_NAME']}?charset=utf8mb4"
+
+    url = (f"mysql+pymysql://{cfg['DB_USER']}:{cfg['DB_PASS']}@{cfg['DB_HOST']}:{cfg['DB_PORT']}/{cfg['DB_NAME']}")
+
+    engine = create_engine(
+        url,
+        connect_args={"charset": "utf8mb4"},
+        pool_pre_ping=True,
     )
+
+    with engine.connect() as conn:
+        conn.execute(text("SET NAMES utf8mb4"))
+
+    return
 
 
 def load_db(engine: Engine, used_car_table: str = "used_cars") -> pd.DataFrame:

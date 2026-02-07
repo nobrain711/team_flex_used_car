@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS car_specs
     model_year      VARCHAR(100)    NOT NULL COMMENT '판매 연도 (예: 2019~2023, 2019~현재)',
     trim_name       VARCHAR(50)     NOT NULL DEFAULT '' COMMENT '트림명(없으면 공백)',
     drivetrain_type VARCHAR(20)     NOT NULL COMMENT '전륜/후륜/사륜 (추후 확장)',
-    fuel_type       VARCHAR(20)     NOT NULL COMMENT '연료 타입',
+    fuel_type       VARCHAR(100)     NOT NULL COMMENT '연료 타입',
     fuel_efficiency FLOAT           NOT NULL COMMENT '연비/전비',
     displacement_cc INT             NOT NULL COMMENT '배기량(cc) / EV는 배터리 용량 등 추후 정의',
     transmission    TINYINT         NOT NULL DEFAULT 1 COMMENT '차량 변속기 0은 수동 1은 자동',

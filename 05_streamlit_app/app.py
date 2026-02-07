@@ -183,6 +183,9 @@ def parse_float(name: str, raw: str, min_v: float, max_v: float) -> float:
 
 
 def render_main():
+    st.warning("DEBUG: render_main 실행됨")
+    st.write("DEBUG brand head:", df_all["brand"].head(5).tolist())
+
     st.markdown('<div class="hero-title">중고차 구매 가이드</div>', unsafe_allow_html=True)
     st.markdown('<div class="hero-subtitle">가격 적정도 분석 또는 조건 기반 추천을 선택하세요.</div>', unsafe_allow_html=True)
 

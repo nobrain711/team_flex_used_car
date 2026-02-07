@@ -1,0 +1,10 @@
+.idea/
+__pycache__/
+*.pyc
+mysql_data/
+06_data/result/
+07_docs/
+*.png
+*.jpg
+*.ipynb
+.env
